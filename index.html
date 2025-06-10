@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>布拉格六天五夜互動行程</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Czech Flag Morandi - Blue: #6495ED (Cornflower Blue), Red: #CD5C5C (Indian Red), White: #FDFBF8 (Warm Off-White) -->
+    <!-- Application Structure Plan: The SPA maintains its tabbed interface immediately below the main title for primary navigation (總覽, 每日行程, 交通指南, 美食好物, 自駕詳情, 備註事項). The accommodation details are presented in a floating modal window, triggered by clicking the "Vodickova Luxury Suites" link under the main title. This modal design provides an on-demand display for accommodation information, overlaying the active main tab content without hiding it. Closing the modal returns focus to the previously active main tab. The "交通指南" tab features collapsible sections for "從布拉格中央車站到住宿" and "從住宿到布拉格機場" to manage content display. A new "備註事項" tab is added for general travel tips. -->
+    <!-- Visualization & Content Choices:
+        - Report Info: Prague overview -> Goal: Inform -> Viz/Presentation: Text block with image (HTML/Tailwind/Unicode) within "總覽" tab -> Interaction: Collapsible sections for history details (Vanilla JS) -> Justification: Provides essential background context for the city with interactive historical exploration.
+        - Report Info: Daily itinerary -> Goal: Organize/Explore -> Viz/Presentation: Interactive day-selector tabs (HTML/JS Toggles) within "每日行程" tab -> Interaction: Click to reveal a single day's plan -> Justification: Breaks down the long trip into manageable daily chunks, improving clarity and user control. (Vanilla JS)
+        - Report Info: Transportation ticket options -> Goal: Compare -> Viz/Presentation: Text list (HTML/Tailwind) within "交通指南" tab -> Interaction: None -> Justification: Presents prices directly and clearly, as requested.
+        - Report Info: Driving rest stops -> Goal: Organize/Inform -> Viz/Presentation: Collapsible content cards (HTML/JS Toggles) within "自駕詳情" tab -> Interaction: Click to expand/collapse details -> Justification: Keeps the UI clean by hiding secondary information until requested by the user. (Vanilla JS)
+        - Report Info: Accommodation details -> Goal: Inform/Provide access -> Viz/Presentation: Floating modal window (HTML/Tailwind/Unicode + Vanilla JS for show/hide) activated by a prominent link below the main title -> Interaction: Click to display/close modal -> Justification: Offers a distinct, overlaying view for detailed accommodation information, making it accessible on demand without disrupting the main content flow.
+        - New: Collapsible sections for "抵達與離開布拉格" in "交通指南" -> Goal: Organize/Explore -> Viz/Presentation: Collapsible content cards (HTML/JS Toggles) -> Interaction: Click to expand/collapse details -> Justification: Improves readability by allowing users to expand only the relevant travel details.
+        - New: "備註事項" tab -> Goal: Inform/Advise -> Viz/Presentation: Text lists with collapsible sections -> Interaction: Click to expand/collapse details -> Justification: Provides general but important travel advice in an organized, on-demand manner.
+        - New: "美食好物" tab -> Goal: Inform/Recommend -> Viz/Presentation: Text lists with collapsible sections -> Interaction: Click to expand/collapse details -> Justification: Organizes food and shopping recommendations for easy browsing.
+        - New: "匯率換算" tab -> Goal: Convert currency -> Viz/Presentation: Input field and display area -> Interaction: Type to convert -> Justification: Provides a practical tool for travelers to quickly check currency equivalents.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #FDFBF8; /* Warm off-white background */
+            color: #4A4A4A;
+        }
+        .main-nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+            color: #CD5C5C; /* Indian Red for tabs */
+        }
+        .main-nav-link.active {
+            color: #6495ED; /* Cornflower Blue for active tab */
+            border-bottom-color: #6495ED;
+            background-color: rgba(100, 149, 237, 0.1); /* Light blue tint for active tab */
+        }
+        .main-nav-link:hover {
+            color: #6495ED; /* Cornflower Blue on hover */
+            border-bottom-color: #6495ED;
+        }
+        .day-btn {
+            transition: all 0.3s;
+        }
+        .day-btn.active {
+            background-color: #6495ED; /* Cornflower Blue */
+            color: #FFFFFF;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .content-card {
+            background-color: #FFFFFF;
+            border: 1px solid #EAEAEA;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            transition: box-shadow 0.3s;
+        }
+        .content-card:hover {
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
+        }
+        .section-title {
+            color: #CD5C5C; /* Indian Red */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+        }
+        .details-section {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.7s ease-in-out;
+        }
+        .details-section.open {
+            max-height: 1000px; /* Adjust as needed for content */
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .history-item {
+            margin-bottom: 1rem;
+            border: 1px solid #EAEAEA;
+            border-radius: 0.75rem;
+        }
+        .history-title-button {
+            width: 100%;
+            text-align: left;
+            padding: 1rem;
+            background-color: #f7f7f7;
+            border-bottom: 1px solid #EAEAEA;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .history-title-button:hover {
+            background-color: #ececec;
+        }
+        .history-content {
+            padding: 1rem;
+            display: none;
+            color: #666;
+            line-height: 1.6;
+        }
+        .history-content.active {
+            display: block;
+        }
+        .history-arrow {
+            transition: transform 0.3s;
+        }
+        .history-arrow.rotate-180 {
+            transform: rotate(180deg);
+        }
+        .accommodation-link-active {
+            color: #6495ED !important; /* Cornflower Blue */
+            text-decoration: underline;
+        }
+
+        /* Modal specific styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: #FFFFFF;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal-overlay.open .modal-content {
+            transform: translateY(0);
+        }
+        .modal-close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #CD5C5C;
+            transition: color 0.2s;
+        }
+        .modal-close-button:hover {
+            color: #6495ED;
+        }
+
+        /* Travel and Notes section specific styles */
+        .travel-item, .notes-item {
+            margin-bottom: 1rem;
+            border: 1px solid #EAEAEA;
+            border-radius: 0.75rem;
+        }
+        .travel-title-button, .notes-title-button {
+            width: 100%;
+            text-align: left;
+            padding: 1rem;
+            background-color: #f7f7f7;
+            border-bottom: 1px solid #EAEAEA;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .travel-title-button:hover, .notes-title-button:hover {
+            background-color: #ececec;
+        }
+        .travel-content, .notes-content {
+            padding: 1rem;
+            display: none;
+            color: #666;
+            line-height: 1.6;
+        }
+        .travel-content.active, .notes-content.active {
+            display: block;
+        }
+        .travel-arrow, .notes-arrow {
+            transition: transform 0.3s;
+        }
+        .travel-arrow.rotate-180, .notes-arrow.rotate-180 {
+            transform: rotate(180deg);
+        }
+        .pronunciation-button {
+            background-color: #6495ED; /* Cornflower Blue */
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .pronunciation-button:hover {
+            background-color: #4A7FD6; /* Slightly darker blue */
+        }
+
+        /* New styles for food-goods-tab and its items */
+        .food-goods-container .content-card {
+            margin-bottom: 1.5rem; /* Space between the two main blocks */
+        }
+        .food-item, .shopping-item {
+            margin-bottom: 1rem;
+            border: 1px solid #EAEAEA;
+            border-radius: 0.75rem;
+        }
+        .food-item-button, .shopping-item-button {
+            width: 100%;
+            text-align: left;
+            padding: 1rem;
+            background-color: #f7f7f7;
+            border-bottom: 1px solid #EAEAEA;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .food-item-button:hover, .shopping-item-button:hover {
+            background-color: #ececec;
+        }
+        .food-item-content, .shopping-item-content {
+            padding: 1rem;
+            display: none;
+            color: #666;
+            line-height: 1.6;
+        }
+        .food-item-content.active, .shopping-item-content.active {
+            display: block;
+        }
+        .food-item-arrow, .shopping-item-arrow {
+            transition: transform 0.3s;
+        }
+        .food-item-arrow.rotate-180, .shopping-item-arrow.rotate-180 {
+            transform: rotate(180deg);
+        }
+
+        /* Currency converter specific styles */
+        .currency-converter-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #EAEAEA;
+            border-radius: 0.5rem;
+            font-size: 1.125rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .currency-converter-output {
+            background-color: #F7FAFC;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #6495ED; /* Cornflower Blue */
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .currency-note {
+            font-size: 0.875rem;
+            color: #666;
+            text-align: center;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 class="text-3xl md:text-4xl font-bold text-center text-[#CD5C5C] mb-2">
+                <span class="inline-block align-middle mr-2">🇨🇿</span> 布拉格
+            </h1>
+            <p id="accommodation-link-trigger" class="text-center text-base text-[#6495ED] cursor-pointer hover:underline -mt-1 mb-4">
+                <span class="inline-block align-middle mr-1">🏠</span>Vodickova Luxury Suites
+            </p>
+            <nav class="flex justify-center border-b border-gray-200">
+                <button class="main-nav-link px-4 py-2 text-sm md:text-base font-medium border-b-2 border-transparent active" data-tab="overview-tab">總覽</button>
+                <button class="main-nav-link px-4 py-2 text-sm md:text-base font-medium border-b-2 border-transparent" data-tab="itinerary-tab">每日行程</button>
+                <button class="main-nav-link px-4 py-2 text-sm md:text-base font-medium border-b-2 border-transparent" data-tab="transport-tab">交通指南</button>
+                <button class="main-nav-link px-4 py-2 text-sm md:text-base font-medium border-b-2 border-transparent" data-tab="food-goods-tab">美食好物</button>
+                <button class="main-nav-link px-4 py-2 text-sm md:text-base font-medium border-b-2 border-transparent" data-tab="driving-tab">自駕詳情</button>
+                <button class="main-nav-link px-4 py-2 text-sm md:text-base font-medium border-b-2 border-transparent" data-tab="notes-tab">備註事項</button>
+                <button class="main-nav-link px-4 py-2 text-sm md:text-base font-medium border-b-2 border-transparent" data-tab="currency-converter-tab">匯率換算</button> <!-- New Tab Button -->
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+
+        <!-- Overview Tab Content -->
+        <section id="overview-tab" class="tab-content active">
+            <h2 class="text-3xl font-bold text-center mb-8 section-title">布拉格歷史與概覽</h2>
+            <div class="content-card max-w-4xl mx-auto p-6 text-gray-700 leading-relaxed">
+                <p class="mb-6">
+                    布拉格，捷克共和國的首都，是一座擁有千年歷史的城市，被譽為「百塔之城」和「歐洲之心」。其獨特的地理位置和保存完好的歷史建築，使其成為世界上最受歡迎的旅遊目的地之一。
+                </p>
+
+                <div class="history-item">
+                    <button class="history-title-button">
+                        <span>早期發展與普熱米斯爾王朝</span>
+                        <span class="history-arrow">⌄</span>
+                    </button>
+                    <div class="history-content">
+                        <p>
+                            布拉格的歷史可以追溯到公元9世紀，隨著普熱米斯爾王朝的興起而逐漸發展。在神聖羅馬帝國查理四世的統治下，布拉格迎來了黃金時代，成為帝國的文化和政治中心。查理大學的建立和聖維特大教堂的修建，都彰顯了這座城市的輝煌。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="history-item">
+                    <button class="history-title-button">
+                        <span>文藝復興與巴洛克時期</span>
+                        <span class="history-arrow">⌄</span>
+                    </button>
+                    <div class="history-content">
+                        <p>
+                            文藝復興和巴洛克時期，布拉格繼續繁榮，留下了許多精美的建築。然而，隨後的三十年戰爭和哈布斯堡王朝的統治，也讓布拉格經歷了數百年的低潮。直到19世紀末20世紀初，捷克民族復興運動的興起，才讓這座城市重新煥發活力。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="history-item">
+                    <button class="history-title-button">
+                        <span>20世紀的變革與新生</span>
+                        <span class="history-arrow">⌄</span>
+                    </button>
+                    <div class="history-content">
+                        <p>
+                            20世紀，布拉格見證了兩次世界大戰、共產主義統治以及1989年的天鵝絨革命，最終走向民主與自由。這段複雜的歷史為城市增添了豐富的層次感，使其不僅擁有迷人的外表，更蘊含著深刻的故事。
+                        </p>
+                    </div>
+                </div>
+
+                 <div class="history-item">
+                    <button class="history-title-button">
+                        <span>現代布拉格的魅力</span>
+                        <span class="history-arrow">⌄</span>
+                    </button>
+                    <div class="history-content">
+                        <p>
+                            如今的布拉格，是歐洲重要的文化、藝術和經濟中心。無論是漫步在老城廣場的石板路上，穿越查理大橋，還是探索布拉格城堡的宏偉，都能感受到這座城市獨特的魅力與深厚的底蘊。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <img src="https://zh-tw.skyticket.com/guide/wp-content/uploads/2021/08/shutterstock_1106099360-1.jpg" alt="布拉格景色" class="rounded-lg shadow-md mx-auto w-full md:max-w-xl h-auto object-cover">
+                </div>
+            </div>
+        </section>
+
+        <!-- Itinerary Tab Content -->
+        <section id="itinerary-tab" class="tab-content">
+            <h2 class="text-3xl font-bold text-center mb-8 section-title">每日行程</h2>
+            <p class="text-center text-gray-600 mb-8 max-w-2xl mx-auto">點擊下方日期按鈕，查看當日的詳細行程規劃。</p>
+            
+            <div id="day-selector" class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
+                <!-- Day buttons will be inserted here by JS -->
+            </div>
+
+            <div id="itinerary-details">
+                <!-- Itinerary details for each day will be inserted here by JS -->
+            </div>
+        </section>
+
+        <!-- Transport Tab Content -->
+        <section id="transport-tab" class="tab-content">
+            <h2 class="text-3xl font-bold text-center mb-8 section-title">交通指南</h2>
+             <p class="text-center text-gray-600 mb-8 max-w-2xl mx-auto">布拉格擁有高效的公共交通網絡。本節將提供從機場到市區以及市區內的交通票券資訊，幫助您輕鬆遊覽。</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="content-card p-6">
+                    <h3 class="font-bold text-xl mb-4 text-center">抵達與離開布拉格</h3>
+                    <div class="space-y-4">
+                        <!-- Collapsible section for 'From Train Station to Accommodation' -->
+                        <div class="travel-item">
+                            <button class="travel-title-button">
+                                <h4 class="font-semibold">🚂 6月29日：從布拉格中央車站到住宿</h4>
+                                <span class="travel-arrow">⌄</span>
+                            </button>
+                            <div class="travel-content">
+                                <p class="text-gray-600 mb-2">從布達佩斯搭乘火車RJ1032預計於14:39抵達布拉格中央車站。</p>
+                                <ul class="list-disc list-inside text-gray-600">
+                                    <li><strong>步行:</strong> 住宿 Vodickova Luxury Suites 距離中央車站約13-15分鐘步行路程。</li>
+                                    <li><strong>地鐵 (推薦):</strong> 從中央車站 (Hlavní nádraží) 搭乘地鐵C線（紅線）一站至 Můstek 站。Můstek 站距離住宿僅約309公尺，步行約5分鐘即可抵達。考慮到您攜帶行李，地鐵會是更舒適高效的選擇。</li>
+                                    <li><strong>電車:</strong> 亦有電車路線連接中央車站與住宿附近區域，可利用 Google Maps 或 PID Lítačka 應用程式查詢最便捷的路線。</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <!-- Collapsible section for 'From Accommodation to Airport' -->
+                        <div class="travel-item">
+                            <button class="travel-title-button">
+                                <h4 class="font-semibold">✈️ 從住宿到布拉格機場 (7月4日)</h4>
+                                <span class="travel-arrow">⌄</span>
+                            </button>
+                            <div class="travel-content">
+                                <ul class="list-disc list-inside text-gray-600">
+                                    <li><strong>公共交通（推薦，性價比高）:</strong> 從 Můstek 地鐵站搭乘地鐵A線至 Nádraží Veleslavín 站，轉乘59號公車直達機場。全程約35分鐘。</li>
+                                    <li><strong>公車（最便宜，但時間較長）:</strong> 搭乘910號公車從 Myslíkova 站直達機場，約45分鐘。此為夜間公車路線。</li>
+                                    <li><strong>計程車/叫車服務 (最快):</b> 約20分鐘，費用約550-700捷克克朗。</li>
+                                    <li><strong>機場接駁服務:</strong> 住宿可應要求提供，額外收費30歐元。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="content-card p-6">
+                    <h3 class="font-bold text-xl mb-4 text-center">布拉格市區交通票券價格</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li><strong>30分鐘票:</strong> 成人 30 捷克克朗 (CZK)</li>
+                        <li><strong>90分鐘票::</strong> 成人 40 捷克克朗 (CZK)</li>
+                        <li><strong>24小時票:</strong> 成人 120 捷克克朗 (CZK)</li>
+                        <li><strong>72小時票:</strong> 成人 330 捷克克朗 (CZK)</li>
+                        <li><small class="text-gray-500">備註: 15歲以下兒童免費，65歲以上長者可憑身份證件或護照免費搭乘。</small></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Food & Goods Tab Content -->
+        <section id="food-goods-tab" class="tab-content">
+            <h2 class="text-3xl font-bold text-center mb-8 section-title">布拉格美食好物</h2>
+            <p class="text-center text-gray-600 mb-8 max-w-2xl mx-auto">在布拉格，您將體驗到豐富的味蕾享受和獨特的購物樂趣。這裡有傳統美食，也有值得帶回家的紀念品和特產。</p>
+            <div class="food-goods-container space-y-8"> <!-- Changed to space-y-8 for vertical spacing between blocks -->
+                <!-- Food Section -->
+                <div class="content-card p-6">
+                    <h3 class="font-bold text-xl mb-4 text-center">美食小吃</h3>
+                    <div class="space-y-4">
+                        <div class="food-item">
+                            <button class="food-item-button">
+                                <h4>🍦 Trdelník (煙囪捲)</h4>
+                                <span class="food-item-arrow">⌄</span>
+                            </button>
+                            <div class="food-item-content">
+                                <p class="text-gray-600">這是布拉格街頭巷尾都能見到的傳統甜點。麵團包裹在木棍上，烤至金黃酥脆，再撒上糖和核桃粉。您可以選擇搭配冰淇淋、巧克力醬或鮮奶油，口感豐富，是拍照打卡必備美食。</p>
+                                <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEilAMeK8_-9ELiPLzurx7jfU5LFg5YLQZ6ZVEN6yQGBJLqNyVyfdKPWZOG1xVHfZg2N7YYHBx52KP-8YKYTbhnA9CkYt3wPAen39e05MmlvwePO8ZlbcZ_ofy47v8bZUvIxr8v2DKjsfdzE/w1200-h630-p-k-no-nu/CZ+Food_Pixabay_2_Denny+Hell.jpg" alt="煙囪捲" class="rounded-lg shadow-sm mt-3 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="food-item">
+                            <button class="food-item-button">
+                                <h4>🍖 Tradiční české jídlo (傳統捷克菜)</h4>
+                                <span class="food-item-arrow">⌄</span>
+                            </button>
+                            <div class="food-item-content">
+                                <p class="text-gray-600 mb-2">布拉格的傳統菜餚以肉類和豐盛的配菜為主，例如：</p>
+                                <ul class="list-disc list-inside text-gray-600">
+                                    <li><strong>Guláš (燉牛肉):</strong> 搭配捷克傳統的麵包餃 (knedlíky)，是捷克人最愛的國民美食。</li>
+                                    <li><strong>Svíčková (烤牛里脊):</strong> 淋上特製奶油醬，配以越橘醬和麵包餃，口感豐富，酸甜適中。</li>
+                                </ul>
+                                <img src="https://resize-image.vocus.cc/resize?norotation=true&quality=80&url=https%3A%2F%2Fimages.vocus.cc%2F92501988-6ff0-447a-b93f-953031e484d4.jpg&width=740&sign=YmO2gxjOz9N6tR6bZnle7q743jvyBaCoM9HL1jE3GIc" alt="捷克燉牛肉" class="rounded-lg shadow-sm mt-3 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="food-item">
+                            <button class="food-item-button">
+                                <h4>🥪 Chlebíčky (開放式三明治)</h4>
+                                <span class="food-item-arrow">⌄</span>
+                            </button>
+                            <div class="food-item-content">
+                                <p class="text-gray-600">這是一種經典的捷克小吃，將新鮮配料（如火腿、起司、雞蛋沙拉、蔬菜等）放在一片長形白麵包上。色彩繽紛，適合快速午餐或點心。</p>
+                                <img src="https://miro.medium.com/v2/resize:fit:1400/1*XZs2HxScNLPD8WDc3Sa5UQ.jpeg" alt="開放式三明治" class="rounded-lg shadow-sm mt-3 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="food-item">
+                            <button class="food-item-button">
+                                <h4>🥞 Palačinky (捷克薄餅)</h4>
+                                <span class="food-item-arrow">⌄</span>
+                            </button>
+                            <div class="food-item-content">
+                                <p class="text-gray-600">捷克版的法式薄餅，通常捲起來，內餡可以是甜的（如果醬、巧克力醬、冰淇淋）或鹹的（如肉類、蔬菜）。</p>
+                                <img src="https://www.diachrom.cz/images/recepty-web/recept-web-130-1652610770.jpg" alt="捷克薄餅" class="rounded-lg shadow-sm mt-3 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="food-item">
+                            <button class="food-item-button">
+                                <h4>🍺 Pivo (捷克啤酒)</h4>
+                                <span class="food-item-arrow">⌄</span>
+                            </button>
+                            <div class="food-item-content">
+                                <p class="text-gray-600">捷克是全球人均啤酒消費量最高的國家，啤酒文化深厚。推薦品嚐Pilsner Urquell、Staropramen等當地品牌，或到小酒館體驗現釀啤酒。</p>
+                                <img src="https://cparty.com.tw/wp-content/uploads/2024/09/1725935984.0622.jpg" alt="捷克啤酒" class="rounded-lg shadow-sm mt-3 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supermarket Must-Buys Section -->
+                <div class="content-card p-6">
+                    <h3 class="font-bold text-xl mb-4 text-center">超市必買</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🍺 捷克超市啤酒</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">除了酒館現釀，在超市也能買到價格實惠且選擇多樣的捷克啤酒，如Pilsner Urquell和Budějovický Budvar，適合帶回國或日常飲用。</p>
+                                <img src="https://i0.wp.com/whereisru.com/wp-content/uploads/2023/10/%E7%85%A7%E7%89%87%E5%8A%A0%E6%B5%AE%E6%B0%B4%E5%8D%B0-6-1024x768.jpg?resize=1024%2C768&ssl=1" alt="捷克超市啤酒" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🍬 JOJO 軟糖</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">捷克當地非常受歡迎的軟糖品牌，口味多樣，包裝可愛，是送給小朋友或當零食的好選擇。</p>
+                                <img src="https://i0.wp.com/whereisru.com/wp-content/uploads/2023/10/%E7%85%A7%E7%89%87%E5%8A%A0%E6%B5%AE%E6%B0%B4%E5%8D%B0-5-1024x768.jpg?resize=1024%2C768&ssl=1" alt="JOJO軟糖" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🥃 Becherovka (貝赫洛夫卡酒)</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">捷克特有的草本利口酒，口感獨特。在超市購買價格會比紀念品店更實惠。</p>
+                                <img src="https://muzi.com.tw/wp-content/uploads/2025/03/batch_becherovka_0.jpg" alt="貝赫洛夫卡酒" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🧇 Kolonada 溫泉餅</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">大型圓形威化餅，有多種夾心口味。雖然在溫泉小鎮更具代表性，但超市也能方便買到，是經濟實惠的伴手禮。</p>
+                                <img src="https://i0.wp.com/whereisru.com/wp-content/uploads/2023/10/%E7%85%A7%E7%89%87%E5%8A%A0%E6%B5%AE%E6%B0%B4%E5%8D%B0-4-1024x768.jpg?resize=1024%2C768&ssl=1" alt="溫泉餅" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🍫 Studentská 巧克力</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">自1975年起就受到歡迎的捷克巧克力品牌，特色是內含榛果、葡萄乾和果凍，口感豐富，是超市常見的點心。</p>
+                                <img src="https://muzi.com.tw/wp-content/uploads/2025/03/batch_kharkiv-ukraine-november-3-2021-studentska-chocolate-bar-is-a-popular-czech-chocolate-manufacturing-by-orion-part-of-nestle-company-free-photo-1.jpg" alt="Studentská巧克力" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🍰 蜂蜜蛋糕</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">捷克超市常有販售多層蜂蜜蛋糕，口感濕潤香甜，是當地人也很喜歡的甜點。</p>
+                                <img src="https://i2.chuimg.com/03122dd0a37511e6bc9d0242ac110002_1986w_1326h.jpg?imageView2/1/w/800/h/600/q/75/format/jpg" alt="蜂蜜蛋糕" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🍵 草本茶包</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">捷克有豐富的草本植物，超市提供多種當地品牌的草本茶包，對健康有益且適合送禮。</p>
+                                <img src="https://i0.wp.com/whereisru.com/wp-content/uploads/2023/10/%E7%85%A7%E7%89%87%E5%8A%A0%E6%B5%AE%E6%B0%B4%E5%8D%B0-7-1024x768.jpg?resize=1024%2C768&ssl=1" alt="草本茶包" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🍎 時令水果</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">在超市購買當季的新鮮水果，既便宜又美味，可以作為旅行中的健康點心。</p>
+                                <img src="https://bigsharkgogogo.tw/wp-content/uploads/2025/01/90277B46-569D-4695-8B19-05FD38775760-jpeg.webp" alt="時令水果" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                         <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🍫 各式巧克力</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">除了Studentská巧克力，捷克超市還有其他多樣的本地和進口巧克力品牌，滿足不同口味的需求。</p>
+                                <img src="https://i0.wp.com/whereisru.com/wp-content/uploads/2023/10/wp%E7%B2%BE%E9%81%B8-1200-x-630-%E5%83%8F%E7%B4%A0-1-1024x538.jpg?resize=1024%2C538&ssl=1" alt="各式巧克力" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shopping Section -->
+                <div class="content-card p-6">
+                    <h3 class="font-bold text-xl mb-4 text-center">推薦好物</h3>
+                    <div class="space-y-4">
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>💎 波希米亞水晶/玻璃製品</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">捷克是世界知名的水晶和玻璃製品產地，品質精美，從裝飾品到實用器皿都有，是極佳的伴手禮。</p>
+                                <img src="https://muzi.com.tw/wp-content/uploads/2025/03/batch_maxresdefault-1.jpg" alt="波希米亞水晶" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🔴 石榴石飾品</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">捷克石榴石 (Czech Garnet) 顏色深紅，品質上乘，可以購買戒指、項鍊等飾品。</p>
+                                <img src="https://muzi.com.tw/wp-content/uploads/2025/03/batch_Where-to-buy-Garnet-Jewelry-in-Prague-1.jpg" alt="石榴石飾品" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🧸 木製玩具/提線木偶</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">布拉格的木製玩具和手工提線木偶非常有名，充滿藝術氣息和童趣，是送給孩子或收藏的獨特禮物，例如受歡迎的「小鼴鼠 (Krtek)」。</p>
+                                <img src="https://muzi.com.tw/wp-content/uploads/2025/03/batch_2495758221_820fb02742_b.jpg" alt="小鼴鼠玩具" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🌿 Botanicus 手工皂與精油</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">以天然成分和草本精油聞名的品牌，提供高品質的手工皂、護膚品和精油產品。</p>
+                                <img src="https://muzi.com.tw/wp-content/uploads/2025/03/batch_Prague_store_16_9_caption_1500x.jpg" alt="Botanicus手工皂與精油" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🍬 捷克方糖</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">設計精美的方糖，常製成心形或布拉格地標形狀，是獨特的伴手禮。</p>
+                                <img src="https://muzi.com.tw/wp-content/uploads/2025/03/batch_il_fullxfull.4042259455_7kjz.jpg" alt="捷克方糖" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>☕️ 卡羅維瓦利溫泉杯</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">專為飲用富含礦物質的溫泉水設計的特殊杯子，是卡羅維瓦利的特色商品，在布拉格的部分紀念品店也能找到。</p>
+                                <img src="https://muzi.com.tw/wp-content/uploads/2025/03/batch_cups-mineral-water-shop-karlovy-vary-karlovy-vary-czech-republic-october-colorful-porcelain-mugs-cups-mineral-192650296.jpg" alt="卡羅維瓦利溫泉杯" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                        <div class="shopping-item">
+                            <button class="shopping-item-button">
+                                <h4>🎨 捷克手工陶瓷</h4>
+                                <span class="shopping-item-arrow">⌄</span>
+                            </button>
+                            <div class="shopping-item-content">
+                                <p class="text-gray-600">手繪陶瓷製品，常有傳統設計，包括著名的藍洋蔥圖案，充滿當地特色。</p>
+                                <img src="https://muzi.com.tw/wp-content/uploads/2025/03/batch_a9ea849b5b0dc224ccb9dd713b50fa81.jpg" alt="捷克手工陶瓷" class="rounded-lg shadow-sm mt-2 w-full h-auto object-cover">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Driving Tab Content -->
+        <section id="driving-tab" class="tab-content">
+            <h2 class="text-3xl font-bold text-center mb-8 section-title">自駕一日遊詳情 (7月2日)</h2>
+            <p class="text-center text-gray-600 mb-8 max-w-2xl mx-auto">這天將自駕前往溫泉小鎮卡羅維瓦利。請注意D6/E48高速公路的路況與電子通行證要求，並善用沿途休憩點。</p>
+            <div class="content-card max-w-4xl mx-auto p-6">
+                <div class="text-center mb-6">
+                    <h3 class="font-bold text-xl">目的地：卡羅維瓦利 (Karlovy Vary)</h3>
+                    <p class="text-gray-600">單程約 2 小時 | 經 D6/E48 高速公路</p>
+                </div>
+
+                <div class="border-t border-gray-200 pt-6">
+                    <h4 class="font-bold text-lg mb-4 text-center">沿途推薦休憩點</h4>
+                    <div id="rest-stops-container" class="space-y-3">
+                        <!-- Rest stop details will be inserted here by JS -->
+                    </div>
+                </div>
+                 <div class="mt-6 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700 rounded-r-lg">
+                    <h4 class="font-bold">⚠️ 重要駕駛提醒</h4>
+                    <ul class="list-disc list-inside mt-2">
+                        <li>務必預先購買並啟用有效的電子通行證 (e-vignette)。</li>
+                        <li>D6/E48 高速公路交通繁忙，請保持防禦性駕駛。</li>
+                        <li>卡羅維瓦利市中心有多個公共停車場，建議使用 Libušina 停車場。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Notes Tab Content -->
+        <section id="notes-tab" class="tab-content">
+            <h2 class="text-3xl font-bold text-center mb-8 section-title">備註事項</h2>
+            <p class="text-center text-gray-600 mb-8 max-w-2xl mx-auto">以下是一些額外的旅行提示與注意事項，希望能讓您的布拉格之旅更加順利。</p>
+            <div class="content-card max-w-4xl mx-auto p-6 space-y-6">
+
+                <div class="notes-item">
+                    <button class="notes-title-button">
+                        <span>貨幣與支付</span>
+                        <span class="notes-arrow">⌄</span>
+                    </button>
+                    <div class="notes-content">
+                        <ul class="list-disc list-inside text-gray-700 space-y-2">
+                            <li><strong>貨幣：</strong>捷克克朗 (CZK)。建議使用捷克克朗。</li>
+                            <li><strong>支付：</strong>大型商店接受信用卡。小店可能只接受現金，請備小額克朗。</li>
+                            <li><strong>小費：</strong>滿意服務可給5-10%小費。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="notes-item">
+                    <button class="notes-title-button">
+                        <span>電源插座與飲用水</span>
+                        <span class="notes-arrow">⌄</span>
+                    </button>
+                    <div class="notes-content">
+                        <ul class="list-disc list-inside text-gray-700 space-y-2">
+                            <li><strong>電源：</strong>歐洲標準兩圓孔插座 (Type E/F)，電壓230V。備妥轉換插頭。</li>
+                            <li><strong>飲水：</strong>布拉格自來水可直接飲用。建議攜帶水瓶。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="notes-item">
+                    <button class="notes-title-button">
+                        <span>觀光常用捷克語教學</span>
+                        <span class="notes-arrow">⌄</span>
+                    </button>
+                    <div class="notes-content">
+                        <ul class="list-disc list-inside text-gray-700 space-y-2">
+                            <li class="flex items-center justify-between">
+                                <span><strong>您好:</strong> Ahoj (非正式) / Dobrý den (正式)</span>
+                                <button class="pronunciation-button" data-text="Ahoj" data-lang="cs-CZ">發音</button>
+                                <button class="pronunciation-button ml-2" data-text="Dobrý den" data-lang="cs-CZ">發音</button>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span><strong>謝謝:</strong> Děkuji</span>
+                                <button class="pronunciation-button" data-text="Děkuji" data-lang="cs-CZ">發音</button>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span><strong>請:</strong> Prosím</span>
+                                <button class="pronunciation-button" data-text="Prosím" data-lang="cs-CZ">發音</button>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span><strong>對不起:</strong> Promiňte</span>
+                                <button class="pronunciation-button" data-text="Promiňte" data-lang="cs-CZ">發音</button>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span><strong>是:</strong> Ano</span>
+                                <button class="pronunciation-button" data-text="Ano" data-lang="cs-CZ">發音</button>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span><strong>不:</strong> Ne</span>
+                                <button class="pronunciation-button" data-text="Ne" data-lang="cs-CZ">發音</button>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span><strong>再見:</strong> Na shledanou</span>
+                                <button class="pronunciation-button" data-text="Na shledanou" data-lang="cs-CZ">發音</button>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span><strong>多少錢？:</strong> Kolik to stojí?</span>
+                                <button class="pronunciation-button" data-text="Kolik to stojí" data-lang="cs-CZ">發音</button>
+                            </li>
+                            <li class="flex items-center justify-between">
+                                <span><strong>洗手間在哪裡？:</strong> Kde je toaleta?</span>
+                                <button class="pronunciation-button" data-text="Kde je toaleta" data-lang="cs-CZ">發音</button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Currency Converter Tab Content -->
+        <section id="currency-converter-tab" class="tab-content">
+            <div class="content-card max-w-xl mx-auto p-6">
+                <label for="czk-input" class="block text-lg font-medium text-gray-700 mb-2 text-center">輸入捷克克朗 (CZK) 金額:</label>
+                <input type="number" id="czk-input" class="currency-converter-input" placeholder="例如: 100" min="0">
+                
+                <div class="text-center text-gray-700 text-lg font-semibold mb-4">
+                    <span class="inline-block align-middle mr-2">🔄</span> 換算結果:
+                </div>
+                
+                <div id="ntd-output" class="currency-converter-output">
+                    請輸入金額
+                </div>
+                
+                <p class="currency-note">
+                    <span class="inline-block align-middle mr-1">ℹ️</span> 目前換算匯率為 1 捷克克朗 ≈ 1.38 新台幣。此為靜態匯率，可能與即時匯率有所差異。
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-white mt-16">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-gray-500 text-sm">
+            <p>行程規劃應用程式 &copy; 2025 | 祝您旅途愉快！</p>
+        </div>
+    </footer>
+
+    <!-- Accommodation Modal -->
+    <div id="accommodation-modal-overlay" class="modal-overlay">
+        <div class="modal-content max-w-4xl mx-auto p-6">
+            <button class="modal-close-button" id="modal-close-button">&times;</button>
+            <h2 class="text-3xl font-bold text-center mb-8 section-title">住宿資訊</h2>
+            <div class="overflow-hidden">
+                <div class="bg-gray-50 p-6">
+                    <h3 class="text-2xl font-bold text-[#6495ED]">Vodickova Luxury Suites</h3>
+                    <p class="text-gray-600 mt-1">📍 33 Vodičkova, 布拉格, 110 00, Czech Republic</p>
+                </div>
+                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-bold text-lg mb-2">關鍵資訊</h4>
+                        <ul class="space-y-2 text-gray-700">
+                            <li class="flex items-start"><span class="mr-2 mt-1">🕒</span><div><strong>入住時間:</strong> 6月29日, 15:00 - 23:30</div></li>
+                            <li class="flex items-start"><span class="mr-2 mt-1">🕙</span><div><strong>退房時間:</strong> 7月4日, 01:00 - 10:00</div></li>
+                            <li class="flex items-start"><span class="mr-2 mt-1">📞</span><div><strong>聯絡電話:</b> +420 775 232 790</div></li>
+                            <li class="flex items-start"><span class="mr-2 mt-1">🅿️</span><div><strong>停車資訊:</strong> 附近有公共停車場，每小時 €3 (需預約)</div></li>
+                             <li class="flex items-start"><span class="mr-2 mt-1">💡</span><div><strong>重要提示:</strong> 建議提前通知住宿方您的預計抵達時間，以確保順利辦理入住手續。</div></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg mb-2">主要設施與周邊</h4>
+                         <ul class="space-y-2 text-gray-700">
+                            <li class="flex items-center"><span class="mr-2">🍳</span> 設施齊全的廚房</li>
+                            <li class="flex items-center"><span class="mr-2">📶</span> 全區免費 WiFi</li>
+                            <li class="flex items-center"><span class="mr-2">❄️</span> 空調</li>
+                            <li class="flex items-center"><span class="mr-2">🚶</span> 步行可達老城廣場 (7分鐘)、查理大橋 (14分鐘)</li>
+                            <li class="flex items-center"><span class="mr-2">🚇</span> Můstek 地鐵站 (步行約5分鐘)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const tripData = {
+                itinerary: [
+                    {
+                        day: 1,
+                        date: "6月29日 (週日)",
+                        title: "抵達與老城區初探",
+                        details: [
+                            { time: "下午 (14:39後)", activity: "抵達布拉格中央車站，前往住宿辦理入住。稍作休息後，步行至<strong>瓦茨拉夫廣場</strong>感受現代脈動，並欣賞<strong>國家博物館</strong>的宏偉外觀。" },
+                            { time: "傍晚", activity: "漫步至<strong>老城廣場</strong>，欣賞著名的<strong>布拉格天文鐘</strong>整點報時，沉浸在舊城的歷史氛圍中。" },
+                            { time: "晚餐", activity: "在老城區或瓦茨拉夫廣場附近，尋找一家評價良好的餐廳，享用第一頓捷克美食。" }
+                        ]
+                    },
+                    {
+                        day: 2,
+                        date: "6月30日 (週一)",
+                        title: "城堡區與查理大橋",
+                        details: [
+                            { time: "上午", activity: "搭乘公共交通前往<strong>布拉格城堡區</strong>。深入探索聖維特大教堂、舊皇宮、黃金巷與聖喬治大殿，建議預留3-4小時。" },
+                            { time: "下午", activity: "從城堡區步行下山，穿過著名的<strong>查理大橋</strong>，欣賞兩岸風光。接著探索小城區的<strong>坎帕島</strong>與<strong>約翰·藍儂牆</strong>。" },
+                            { time: "傍晚", activity: "可選擇參加伏爾塔瓦河遊船，從水上欣賞城堡與查理大橋的夜景。" }
+                        ]
+                    },
+                    {
+                        day: 3,
+                        date: "7月1日 (週二)",
+                        title: "猶太區與特色博物館",
+                        details: [
+                            { time: "上午", activity: "探索布拉格<strong>猶太區</strong>，參觀老猶太公墓及多座重要的猶太會堂，了解布拉格的猶太歷史文化。" },
+                            { time: "下午", activity: "根據興趣選擇參觀特色博物館，如<strong>樂高博物館</strong>、<strong>慕夏博物館</strong>，或欣賞<strong>卡夫卡旋轉頭像</strong>等現代藝術。" },
+                            { time: "備註", activity: "克勞森猶太會堂和儀式廳可能因整修而關閉，請出發前再次確認。" }
+                        ]
+                    },
+                    {
+                        day: 4,
+                        date: "7月2日 (週三)",
+                        title: "自駕一日遊：卡羅維瓦利",
+                        details: [
+                            { time: "全天", activity: "從布拉格中央車站Sixt租車，自駕前往溫泉小鎮<strong>卡羅維瓦利</strong>。沿途可在推薦的休憩點休息。" },
+                            { time: "景點", activity: "參觀溫泉迴廊、磨坊迴廊，搭乘纜車上黛安娜觀景塔，還可探索貝赫洛夫卡酒博物館或莫瑟玻璃工廠。" },
+                            { time: "晚上", activity: "在租車櫃檯營業時間結束前 (20:00) 返回布拉格中央車站還車，避免市區停車困擾。" }
+                        ]
+                    },
+                    {
+                        day: 5,
+                        date: "7月3日 (週四)",
+                        title: "悠閒公園與當地體驗",
+                        details: [
+                            { time: "上午", activity: "選擇一個公園悠閒漫步，如可俯瞰全景的<strong>萊特納公園</strong>或浪漫的<strong>佩特任公園</strong>（注意：纜車停駛）。" },
+                            { time: "下午", activity: "體驗當地生活，探索充滿活力的<strong>宣言市集</strong>或創意空間<strong>Vnitroblock</strong>，並品嚐傳統捷克糕點Koláče。" },
+                            { time: "晚餐", activity: "享用道地的捷克晚餐，品嚐Guláš或Svíčková等經典菜餚。" }
+                        ]
+                    },
+                    {
+                        day: 6,
+                        date: "7月4日 (週五)",
+                        title: "購物與離開",
+                        details: [
+                            { time: "上午", activity: "進行最後的紀念品購物，或重遊喜愛的景點。於10:00前辦理退房。" },
+                            { time: "下午", activity: "根據航班時間，搭乘公共交通（建議地鐵轉公車）前往機場，搭乘KL1356班機離開布拉格前往阿姆斯特丹 (預計起飛時間: 14:30)。" }
+                        ]
+                    }
+                ],
+                restStops: [
+                    { name: "Odpočívka Velká Dobrá (約D6公里16)", details: "由Orlen營運，提供燃油、Stop Cafe簡餐與洗手間。24小時開放，適合快速加油和點心休息。" },
+                    { name: "Odpočívka Nové Strašecí (約D6公里31)", details: "由MOL營運，提供燃油、Fresh Corner茶點與洗手間。24小時開放，適合中途休息。" },
+                    { name: "Odpočívka Staré Sedlo (約D6公里140)", details: "由Benzina營運，附近有Penzion提供餐廳、咖啡館及多種休閒設施，適合較長時間的休息或用餐。" },
+                    { name: "Odpočívka Odrava (約D6公里159)", details: "由MOL營運，提供燃油和洗手間。24小時開放，適合抵達卡羅維瓦利前最後的快速休息。" }
+                ]
+            };
+
+            const daySelector = document.getElementById('day-selector');
+            const itineraryDetailsContainer = document.getElementById('itinerary-details');
+
+            tripData.itinerary.forEach(day => {
+                const button = document.createElement('button');
+                button.className = 'day-btn px-4 py-2 text-sm md:text-base font-semibold rounded-full bg-white shadow-sm hover:bg-stone-100';
+                button.textContent = day.date;
+                button.dataset.day = day.day;
+                if (day.day === 1) {
+                    button.classList.add('active');
+                }
+                daySelector.appendChild(button);
+
+                const detailDiv = document.createElement('div');
+                detailDiv.className = 'itinerary-day-content content-card p-6';
+                detailDiv.dataset.day = day.day;
+                if (day.day !== 1) {
+                    detailDiv.style.display = 'none';
+                }
+                
+                let detailsHtml = `<h3 class="text-2xl font-bold mb-4 text-[#CD5C5C]">${day.title}</h3><ul class="space-y-4">`;
+                day.details.forEach(item => {
+                    detailsHtml += `<li class="flex items-start"><span class="font-bold text-[#6495ED] w-20 shrink-0">${item.time}</span><p class="text-gray-700">${item.activity}</p></li>`;
+                });
+                detailsHtml += `</ul>`;
+                detailDiv.innerHTML = detailsHtml;
+                itineraryDetailsContainer.appendChild(detailDiv);
+            });
+
+            daySelector.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const selectedDay = e.target.dataset.day;
+
+                    document.querySelectorAll('#day-selector .day-btn').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+
+                    document.querySelectorAll('.itinerary-day-content').forEach(content => {
+                        if (content.dataset.day === selectedDay) {
+                            content.style.display = 'block';
+                        } else {
+                            content.style.display = 'none';
+                        }
+                    });
+                }
+            });
+            
+            const restStopsContainer = document.getElementById('rest-stops-container');
+            tripData.restStops.forEach(stop => {
+                const stopDiv = document.createElement('div');
+                stopDiv.className = 'border border-gray-200 rounded-lg overflow-hidden';
+                stopDiv.innerHTML = `
+                    <button class="w-full text-left p-4 bg-stone-50 hover:bg-stone-100 focus:outline-none flex justify-between items-center transition">
+                        <span class="font-semibold">${stop.name}</span>
+                        <span class="text-xl transform transition-transform duration-300">⌄</span>
+                    </button>
+                    <div class="details-section">
+                        <p class="p-4 bg-white text-gray-600">${stop.details}</p>
+                    </div>
+                `;
+                restStopsContainer.appendChild(stopDiv);
+                
+                const button = stopDiv.querySelector('button');
+                const details = stopDiv.querySelector('.details-section');
+                const arrow = button.querySelector('span:last-child');
+                
+                button.addEventListener('click', () => {
+                    details.classList.toggle('open');
+                    arrow.classList.toggle('rotate-180');
+                });
+            });
+
+            // Tab switching logic
+            const tabButtons = document.querySelectorAll('.main-nav-link');
+            const tabContents = document.querySelectorAll('.tab-content'); 
+
+            const accommodationLinkTrigger = document.getElementById('accommodation-link-trigger');
+            const accommodationModalOverlay = document.getElementById('accommodation-modal-overlay'); 
+            const modalCloseButton = document.getElementById('modal-close-button');
+
+            // Function to show a main tab content (and hide others, close modal)
+            function showTab(targetTabId) {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active')); 
+                if (accommodationModalOverlay) { 
+                    accommodationModalOverlay.classList.remove('open'); // Ensure modal is closed
+                }
+                accommodationLinkTrigger.classList.remove('accommodation-link-active'); // Deactivate accommodation link visual state
+
+                const targetContent = document.getElementById(targetTabId);
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                }
+
+                const correspondingButton = document.querySelector(`.main-nav-link[data-tab="${targetTabId}"]`);
+                if (correspondingButton) {
+                    correspondingButton.classList.add('active');
+                }
+            }
+
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    showTab(button.dataset.tab);
+                });
+            });
+
+            // Event listener for the accommodation link (to open modal)
+            accommodationLinkTrigger.addEventListener('click', () => {
+                // Do NOT hide main tab contents here. The modal will overlay them.
+                // Just ensure the accommodation link visual state is active.
+                accommodationLinkTrigger.classList.add('accommodation-link-active');
+
+                // Open the modal
+                if (accommodationModalOverlay) { // Defensive check
+                    accommodationModalOverlay.classList.add('open');
+                }
+            });
+
+            // Event listener for modal close button
+            if (modalCloseButton) { 
+                modalCloseButton.addEventListener('click', () => {
+                    if (accommodationModalOverlay) { // Defensive check
+                        accommodationModalOverlay.classList.remove('open');
+                    }
+                    accommodationLinkTrigger.classList.remove('accommodation-link-active');
+                    // When modal closes, the previous main tab should remain active.
+                    // No need to call showTab here.
+                });
+            }
+
+            // History section expand/collapse logic
+            document.querySelectorAll('.history-item').forEach(item => {
+                const button = item.querySelector('.history-title-button');
+                const content = item.querySelector('.history-content');
+                const arrow = item.querySelector('.history-arrow');
+
+                button.addEventListener('click', () => {
+                    // Close other open history items
+                    document.querySelectorAll('.history-item').forEach(otherItem => {
+                        if (otherItem !== item) {
+                            otherItem.querySelector('.history-content').classList.remove('active');
+                            otherItem.querySelector('.history-arrow').classList.remove('rotate-180');
+                        }
+                    });
+
+                    // Toggle current item
+                    content.classList.toggle('active');
+                    arrow.classList.toggle('rotate-180');
+                });
+            });
+
+            // Travel section expand/collapse logic
+            document.querySelectorAll('.travel-item').forEach(item => {
+                const button = item.querySelector('.travel-title-button');
+                const content = item.querySelector('.travel-content');
+                const arrow = button.querySelector('.travel-arrow');
+
+                button.addEventListener('click', () => {
+                    content.classList.toggle('active');
+                    arrow.classList.toggle('rotate-180');
+                });
+            });
+
+            // Notes section expand/collapse logic
+            document.querySelectorAll('.notes-item').forEach(item => {
+                const button = item.querySelector('.notes-title-button');
+                const content = item.querySelector('.notes-content');
+                const arrow = button.querySelector('.notes-arrow');
+
+                button.addEventListener('click', () => {
+                    content.classList.toggle('active');
+                    arrow.classList.toggle('rotate-180');
+                });
+            });
+
+            // Food & Goods section expand/collapse logic (Food & Shopping)
+            document.querySelectorAll('.food-item').forEach(item => {
+                const button = item.querySelector('.food-item-button');
+                const content = item.querySelector('.food-item-content');
+                const arrow = item.querySelector('.food-item-arrow');
+
+                button.addEventListener('click', () => {
+                    content.classList.toggle('active');
+                    arrow.classList.toggle('rotate-180');
+                });
+            });
+
+            document.querySelectorAll('.shopping-item').forEach(item => {
+                const button = item.querySelector('.shopping-item-button');
+                const content = item.querySelector('.shopping-item-content');
+                const arrow = item.querySelector('.shopping-item-arrow');
+
+                button.addEventListener('click', () => {
+                    content.classList.toggle('active');
+                    arrow.classList.toggle('rotate-180');
+                });
+            });
+
+            // Function to speak text using Google Translate TTS directly
+            function speakText(text, lang) {
+                const audio = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`);
+                audio.play();
+            }
+
+            // Add event listeners for pronunciation buttons
+            document.querySelectorAll('.pronunciation-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const textToSpeak = button.dataset.text;
+                    const lang = button.dataset.lang;
+                    speakText(textToSpeak, lang);
+                });
+            });
+
+            // Currency converter logic
+            const czkInput = document.getElementById('czk-input');
+            const ntdOutput = document.getElementById('ntd-output');
+            const CZK_TO_NTD_RATE = 1.38; // 1 Czech Koruna (CZK) = 1.38 New Taiwan Dollar (NTD)
+
+            if (czkInput && ntdOutput) {
+                czkInput.addEventListener('input', () => {
+                    const czkAmount = parseFloat(czkInput.value);
+                    if (isNaN(czkAmount) || czkAmount < 0) {
+                        ntdOutput.textContent = '請輸入金額';
+                    } else {
+                        const ntdAmount = czkAmount * CZK_TO_NTD_RATE;
+                        ntdOutput.textContent = `NT$ ${ntdAmount.toFixed(2)}`;
+                    }
+                });
+            }
+
+            // Set initial active tab to "總覽"
+            showTab('overview-tab');
+        });
+    </script>
+</body>
+</html>
